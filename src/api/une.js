@@ -102,7 +102,18 @@ const path = require('path');
 module.exports.sendCmd = function (files) {
     files.forEach(file => {
         let p = path.resolve(file.path, file.name)
-        console.log(`cp1 ${p} ${p + '.bak'}`);
-        exec(`cp1 ${p} ${p + '.bak'}`);
+        // console.log(`$HOME/Downloads/cp-go/cp1 ${p} ${file.name}`);
+        let cmd = `go-cp1 ${p} ${file.name}`;
+        exec(cmd, function (e) {
+            console.log('jobs done!', e);
+            if (e) {
+                console.log('So, what happened?')
+                alert(`文件传输!!!失败: ${file.name}`);
+                return false;
+            }
+            alert(`文件已传输: ${file.name}`);
+        });
+        // exec(`cp1 ${p} ${'~/Downloads/cp-go/outputs/' + file.name}`);
+
     });
 }
