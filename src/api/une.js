@@ -103,7 +103,7 @@ module.exports.sendCmd = function (files) {
     files.forEach(file => {
         let p = path.resolve(file.path, file.name)
         // console.log(`$HOME/Downloads/cp-go/cp1 ${p} ${file.name}`);
-        let cmd = `go-cp1 ${p} ${file.name}`;
+        let cmd = `go-cp1 ${file.path} ${file.name}`;
         exec(cmd, function (e) {
             console.log('jobs done!', e);
             if (e) {
