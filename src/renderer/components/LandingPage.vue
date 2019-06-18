@@ -5,8 +5,11 @@
             <div>
                 <button class="alt" @click="openFile()">Open</button>
                 <button class="alt" @click="saveFile()">Save</button>
-                <button class="alt" @click="showOpenGoDialog()">OpenGo</button>
-                <button class="alt" @click="showSaveGoDialog()">SaveGo</button>
+                <!-- <button class="alt" @click="showOpenGoDialog()">OpenGo</button>
+                <button class="alt" @click="showSaveGoDialog()">SaveGo</button>-->
+                <button class="alt" @click="list()">List</button>
+                <button class="alt" @click="watchit()">Watch</button>
+                <button class="alt" @click="offwatchit()">Stop Watching</button>
             </div>
             <div class="doc" v-show="filedata.length > 0">
                 <p ref="data">{{filedata}}</p>
@@ -33,6 +36,8 @@
 <script>
 import SystemInformation from './LandingPage/SystemInformation'
 import une from 'api/une'
+import { Proxy } from 'api/deux'
+
 // import { dropHandler, ondragoverHandler } from 'api/due'
 
 export default {
@@ -42,11 +47,31 @@ export default {
         return {
             name: '',
             filedata: '',
-            files: []
+            files: [],
+            ws: null,
+            proxy: null
         }
     },
     created() {
-        this.name = une.getName()
+        let z = this
+        z.name = une.getName()
+        let ws = (z.ws = new WebSocket('ws://localhost:3333/ws'))
+        console.log(Proxy)
+        ws.onopen = function(e) {
+            console.log('onopen')
+            z.proxy = new Proxy(ws)
+            z.proxy.ready = true
+        }
+        ws.onmessage = e => {
+            console.log(e)
+            try {
+                let data = JSON.parse(e.data)
+                console.log(data)
+            } catch (e) {
+                console.log(e)
+            }
+        }
+        ws.onclose = () => (z.proxy.ready = false)
     },
     methods: {
         open(link) {
@@ -72,8 +97,9 @@ export default {
         showOpenGoDialog() {},
         showSaveGoDialog() {},
         drop(event) {
+            let z = this
             console.log('File(s) dropped')
-            this.files = []
+            z.files = []
             event.preventDefault()
             event.stopPropagation()
             if (event.dataTransfer.items) {
@@ -84,7 +110,7 @@ export default {
                         console.log(event.dataTransfer.files[i])
                         var file = event.dataTransfer.items[i].getAsFile()
                         console.log('... file[' + i + '].name = ' + file.name)
-                        this.files.push({ name: file.name, path: file.path })
+                        z.files.push({ name: file.name, origin: file.path })
                     }
                 }
             } else {
@@ -97,11 +123,16 @@ export default {
                             '].name = ' +
                             event.dataTransfer.files[i].name
                     )
-                    this.files.push({ name: file.name, path: file.path })
+                    z.files.push({ name: file.name, origin: file.path })
                 }
             }
-            if (this.files.length > 0) {
-                une.sendCmd(this.files)
+            if (z.files.length > 0) {
+                // une.sendCmd(this.files)
+                // upload(this.files, this.ws)
+                z.proxy.send('upload', {
+                    list: z.files
+                })
+                // console.log(z.proxy)
             }
         },
         dragover(event) {
@@ -109,6 +140,15 @@ export default {
             // Prevent default behavior (Prevent file from being opened)
             event.preventDefault()
             event.stopPropagation()
+        },
+        list() {
+            this.proxy.send('list')
+        },
+        watchit() {
+            this.proxy.send('watch')
+        },
+        offwatchit() {
+            this.proxy.send('offwatch')
         }
     }
 }
