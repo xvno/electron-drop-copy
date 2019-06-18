@@ -20,9 +20,24 @@
                     </el-aside>
                     <el-container>
                         <el-main>
-                            <div class="doc" v-show="filedata.length > 0">
+                            <!-- <div class="doc" v-show="filedata.length > 0">
                                 <p ref="data">{{filedata}}</p>
-                            </div>
+                            </div>-->
+                            <el-table :data="tableData" stripe style="width: 100%">
+                                <el-table-column prop="uid" label="uid" max-width="180"></el-table-column>
+                                <el-table-column prop="origin" label="Origin" max-width="180"></el-table-column>
+                                <el-table-column prop="progress" label="Progress">
+                                    <template slot-scope="scope">
+                                        <el-progress :percentage="scope.row.progress"></el-progress>
+                                        <!-- <el-button
+                                            @click="handleClick(scope.row)"
+                                            type="text"
+                                            size="small"
+                                        >查看</el-button>
+                                        <el-button type="text" size="small">编辑</el-button>-->
+                                    </template>
+                                </el-table-column>
+                            </el-table>
                         </el-main>
                     </el-container>
                 </el-container>
@@ -48,7 +63,8 @@ export default {
             filedata: '',
             files: [],
             ws: null,
-            proxy: null
+            proxy: null,
+            tableData: []
         }
     },
     created() {
@@ -64,8 +80,25 @@ export default {
         ws.onmessage = e => {
             console.log(e)
             try {
-                let data = JSON.parse(e.data)
-                console.log(data)
+                let ret = JSON.parse(e.data)
+                console.log(ret)
+                let { cmd, data } = ret
+                switch (cmd) {
+                    case 'list':
+                        this.tableData = this.formatData(data.list)
+                        break
+                    case 'upload':
+                        this.tableData = this.formatData(data.list)
+                        break
+                    case 'watch':
+                        this.tableData = this.formatData(data.list)
+                        break
+                    case 'offwatch':
+                        this.tableData = this.formatData(data.list)
+                        break
+                    default:
+                        alert('天啊, 你到底输入了啥命令?!')
+                }
             } catch (e) {
                 console.log(e)
             }
@@ -73,6 +106,15 @@ export default {
         ws.onclose = () => (z.proxy.ready = false)
     },
     methods: {
+        formatData(list) {
+            return list.map(i => {
+                return {
+                    uid: i.uid,
+                    origin: i.origin,
+                    progress: Math.floor((i.trxed / i.total) * 100)
+                }
+            })
+        },
         open(link) {
             this.$electron.shell.openExternal(link)
         },
