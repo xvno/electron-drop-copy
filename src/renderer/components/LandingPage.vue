@@ -2,33 +2,32 @@
     <div id="wrapper">
         <!-- <img id="logo" src="~@/assets/logo.png" alt="electron-vue"> -->
         <main>
-            <div>
-                <button class="alt" @click="openFile()">Open</button>
-                <button class="alt" @click="saveFile()">Save</button>
-                <!-- <button class="alt" @click="showOpenGoDialog()">OpenGo</button>
-                <button class="alt" @click="showSaveGoDialog()">SaveGo</button>-->
-                <button class="alt" @click="list()">List</button>
-                <button class="alt" @click="watchit()">Watch</button>
-                <button class="alt" @click="offwatchit()">Stop Watching</button>
-            </div>
-            <div class="doc" v-show="filedata.length > 0">
-                <p ref="data">{{filedata}}</p>
-            </div>
-            <p>
-                <label for="message">message:</label>
-                <input type="text" name="message" id="messageInput">
-                <input type="submit" value="Send" id="submit">
-            </p>
-            <p>
-                <label for="cmd">Commands</label>
-                <select name="cmd" id="cmdSelect">
-                    <option value="watch">watch</option>
-                    <option value="offwatch">offwatch</option>
-                    <option value="trans">trans</option>
-                    <option value="close">close</option>
-                </select>
-            </p>
-            <div class="dropzone" @drop="drop" @dragover="dragover"></div>
+            <el-container>
+                <el-header>
+                    <el-button type="primary" round @click="openFile()">Open</el-button>
+                    <el-button type="success" round @click="saveFile()">Save</el-button>
+                    <el-button type="info" round @click="list()">List</el-button>
+                    <el-button type="warning" round @click="watchit()">Watch</el-button>
+                    <el-button type="danger" round @click="offwatchit()">Stop Watching</el-button>
+                </el-header>
+                <el-container>
+                    <el-aside width="200px">
+                        <div
+                            class="grid-content bg-purple dropzone"
+                            @drop="drop"
+                            @dragover="dragover"
+                        ></div>
+                    </el-aside>
+                    <el-container>
+                        <el-main>
+                            <div class="doc" v-show="filedata.length > 0">
+                                <p ref="data">{{filedata}}</p>
+                            </div>
+                        </el-main>
+                    </el-container>
+                </el-container>
+                <!-- <el-footer>Footer</el-footer> -->
+            </el-container>
         </main>
     </div>
 </template>
@@ -190,27 +189,38 @@ main {
     flex-direction: column;
 }
 
-button {
-    font-size: 0.8em;
-    cursor: pointer;
-    outline: none;
-    min-width: 6em;
-    padding: 0.45em 1em;
-    border-radius: 1em;
-    display: inline-block;
-    color: #fff;
-    background-color: #4fc08d;
-    transition: all 0.15s ease;
-    box-sizing: border-box;
-    border: 1px solid #4fc08d;
-}
-button.alt {
-    color: #42b983;
-    background-color: transparent;
-}
 .dropzone {
-    min-height: 400px;
     background-color: antiquewhite;
-    border: 1px solid #678628;
+    border-radius: 1em;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.el-row {
+    padding: 1em;
+}
+#p-file-list {
+    background-color: antiquewhite;
+}
+.el-button {
+    margin: 0.5em;
+}
+#wrapper > main {
+    position: absolute;
+    top: 60px;
+    bottom: 60px;
+    right: 80px;
+    left: 80px;
+}
+.el-main {
+    background-color: aquamarine;
+    border-radius: 1em;
+    margin-left: 0.5em;
+}
+aside {
+    position: relative;
 }
 </style>
