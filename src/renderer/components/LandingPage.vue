@@ -1,7 +1,7 @@
 <template>
     <div id="wrapper">
         <!-- <img id="logo" src="~@/assets/logo.png" alt="electron-vue"> -->
-        <main>
+        <main v-loading="connecting" element-loading-text="连接失败">
             <el-container>
                 <el-header>
                     <el-button type="primary" round @click="openFile()">Open</el-button>
@@ -64,16 +64,33 @@ export default {
             files: [],
             ws: null,
             proxy: null,
-            tableData: []
+            tableData: [],
+            connecting: true
         }
     },
     created() {
         let z = this
         z.name = une.getName()
-        let ws = (z.ws = new WebSocket('ws://localhost:3333/ws'))
+        let ws = null
+        let wsUri = 'ws://localhost:8080/files_trans'
+        // wsUri = 'ws://localhost:3333/ws'
+        try {
+            ws = z.ws = new WebSocket(wsUri)
+        } catch (e) {
+            alert('Websocket: connecting error')
+            console.log(e)
+        }
+        console.log(ws.readyState)
+
+        ws.onerror = function(e) {
+            if (ws.readyState !== 1) {
+                alert('Websocket: 连接失败', wsUri)
+            }
+        }
         console.log(Proxy)
         ws.onopen = function(e) {
-            console.log('onopen')
+            z.connecting = false
+            alert('Websocket: 成功连接到ws服务!')
             z.proxy = new Proxy(ws)
             z.proxy.ready = true
         }
@@ -173,12 +190,11 @@ export default {
                 z.proxy.send('upload', {
                     list: z.files
                 })
-                // console.log(z.proxy)
+                z.proxy.send('watch')
             }
         },
         dragover(event) {
             console.log('File(s) in drop zone')
-            // Prevent default behavior (Prevent file from being opened)
             event.preventDefault()
             event.stopPropagation()
         },
