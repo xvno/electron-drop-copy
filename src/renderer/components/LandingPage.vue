@@ -47,6 +47,7 @@
 import SystemInformation from './LandingPage/SystemInformation'
 import une from 'api/une'
 import { Proxy } from 'api/deux'
+import Vue from 'Vue'
 
 // import { dropHandler, ondragoverHandler } from 'api/due'
 
@@ -60,7 +61,7 @@ export default {
       files: [],
       ws: null,
       proxy: null,
-      tableData: [],
+      //   tableData: [],
       connecting: true,
       messages: {},
       errors: [],
@@ -70,27 +71,37 @@ export default {
       fileRecordsTrxing: []
     }
   },
+  computed: {
+    tableData() {
+      let z = this
+      return [
+        ...Object.values(z.fileRecords),
+        ...Object.values(z.fileRecordsToFinish),
+        ...Object.values(z.fileRecordsTrxing)
+      ]
+    }
+  },
   created() {
     this.store = localStorage
+    this.restoreData()
     let z = this
     z.name = une.getName()
     let ws = null
-    let wsUri = 'ws://localhost:8080/files_trans'
-    // wsUri = 'ws://localhost:3333/ws'
+    // let wsUri = 'ws://localhost:8080/files_trans'
+    let wsUri = 'ws://localhost:3333/ws'
     try {
       ws = z.ws = new WebSocket(wsUri)
     } catch (e) {
       alert('Websocket: connecting error')
       console.log(e)
     }
-    console.log(ws.readyState)
 
     ws.onerror = function(e) {
       if (ws.readyState !== 1) {
         alert('Websocket: 连接失败', wsUri)
       }
     }
-    console.log(Proxy)
+
     ws.onopen = function(e) {
       z.connecting = false
       alert('Websocket: 成功连接到ws服务!')
@@ -98,27 +109,27 @@ export default {
       z.proxy.ready = true
     }
     ws.onmessage = e => {
-      console.log(e)
+    //   console.log(e)
       try {
         let ret = JSON.parse(e.data)
-        console.log(ret)
         let { cmd, data } = ret
         switch (cmd) {
           case 'list':
-            this.tableData = this.formatData(data.list)
+            // this.formatData(data.list)
             break
           case 'upload':
-            this.tableData = this.formatData(data.list)
+            // this.formatData(data.list)
             break
           case 'watch':
-            this.tableData = this.formatData(data.list)
+            // this.formatData(data.list)
             break
           case 'offwatch':
-            this.tableData = this.formatData(data.list)
+            // this.formatData(data.list)
             break
           default:
             alert('天啊, 你到底输入了啥命令?!')
         }
+        this.formatData(data.list)
       } catch (e) {
         console.log(e)
       }
@@ -129,11 +140,16 @@ export default {
     formatData(list) {
       let z = this
       list.forEach(f => {
+        z.preformatFile(f)
         switch (z.checkFileStatus(f)) {
           case 2:
+            f.progress = 100
             z.setFileAsFinished(f)
             break
           case 1:
+            if (f.progress > 99) {
+              f.progress = 99
+            }
             z.setFileAsToFinish(f)
             break
           case 0:
@@ -141,7 +157,6 @@ export default {
             break
           default:
             let msg = '错误的数据格式, file.status 错误'
-            console.log(msg)
             z.errors['data'].push(msg)
         }
       })
@@ -184,8 +199,9 @@ export default {
       }
     },
     restoreData() {
+      let z = this
       if (z.checkStoreAvailable()) {
-        let totalFiles = null
+        let totalFiles = {}
         let storedData = z.store.getItem('totalFiles')
         if (storedData) {
           try {
@@ -196,33 +212,61 @@ export default {
             z.errors['store'].push(msg)
           }
         }
+        z.fileRecords = totalFiles.fileRecords || {}
+        z.fileRecordsToFinish = totalFiles.fileRecordsToFinish || {}
+        z.fileRecordsTrxing = totalFiles.fileRecordsTrxing || {}
       }
     },
     setFileAsFinished(file) {
-      if (this.fileRecordsTrxing[file.uid]) {
-        delete this.fileRecordsTrxing[file.uid]
-      } else if (this.fileRecordsToFinish[file.uid]) {
-        delete this.fileRecordsToFinish[file.uid]
-      }
-      this.fileRecords[file.uid] = file
+      //   if (this.fileRecordsTrxing[file.uid]) {
+      //     delete this.fileRecordsTrxing[file.uid]
+      //   } else if (this.fileRecordsToFinish[file.uid]) {
+      //     delete this.fileRecordsToFinish[file.uid]
+      //   }
+      //   this.fileRecords[file.uid] = file
+      //   Vue.set(this.fileRecords, file.uid, file)
+
+      this.setFile(file, 'fileRecords')
     },
     setFileAsToFinish(file) {
-      if (this.fileRecords[file.uid]) {
-        delete this.fileRecords[file.uid]
-      } else if (this.fileRecordsTrxing[file.uid]) {
-        delete this.fileRecordsTrxing[file.uid]
-      }
-      this.fileRecordsToFinish[file.uid] = file
+      this.setFile(file, 'fileRecordsToFinish')
     },
     setFileAsTrxing(file) {
-      if (this.fileRecords[file.uid]) {
-        delete this.fileRecords[file.uid]
-      } else if (this.fileRecordsToFinish[file.uid]) {
-        delete this.fileRecordsToFinish[file.uid]
-      }
-      this.fileRecordsTrxing[file.uid] = file
+      this.setFile(file, 'fileRecordsTrxing')
     },
-
+    setFile(file, category) {
+      let z = this
+      let categories = [
+        'fileRecords',
+        'fileRecordsToFinish',
+        'fileRecordsTrxing'
+      ]
+      let dataHolder = z[category]
+      if (dataHolder) {
+        // Vue.set()
+        // dataHolder[file.uid] = file
+        z[category] = Object.assign({}, dataHolder, {
+            [file.uid]: file
+        })
+      } else {
+        z[category] = {
+          [file.uid]: file
+        }
+      }
+      let index = categories.indexOf(category)
+      if (index > -1) {
+        categories.splice(index, 1)
+      }
+      categories.forEach(cat => {
+        if (z[cat] && z[cat][file.uid]) {
+          delete z[cat][file.uid]
+          z[cat] = Object.assign({}, z[cat])
+        }
+      })
+    },
+    preformatFile(file) {
+      file.progress = Math.floor((100 * file.trxed) / file.total)
+    },
     getFileRecords() {
       if (this.checkStoreAvailable()) {
         try {
@@ -283,14 +327,12 @@ export default {
       this.$electron.shell.openExternal(link)
     },
     openFile() {
-      console.log('showOpenDialog')
       let z = this
       une.openFile(function(data) {
         z.filedata = data
       })
     },
     saveFile() {
-      console.log('showSaveDialog')
       // une.showSaveDialog({
       //     title: '1st dialog window'
       // })
@@ -321,7 +363,6 @@ export default {
       } else {
         // Use DataTransfer interface to access the file(s)
         for (var i = 0; i < event.dataTransfer.files.length; i++) {
-          console.log(event.dataTransfer.files[i])
           console.log(
             '... file[' + i + '].name = ' + event.dataTransfer.files[i].name
           )
