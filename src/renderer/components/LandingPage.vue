@@ -109,7 +109,7 @@ export default {
       z.proxy.ready = true
     }
     ws.onmessage = e => {
-    //   console.log(e)
+      //   console.log(e)
       try {
         let ret = JSON.parse(e.data)
         let { cmd, data } = ret
@@ -135,6 +135,12 @@ export default {
       }
     }
     ws.onclose = () => (z.proxy.ready = false)
+  },
+  beforeRouteLeave(to, from, next) {
+    this.store()
+  },
+  beforeDestroy() {
+    this.store()
   },
   methods: {
     formatData(list) {
@@ -246,7 +252,7 @@ export default {
         // Vue.set()
         // dataHolder[file.uid] = file
         z[category] = Object.assign({}, dataHolder, {
-            [file.uid]: file
+          [file.uid]: file
         })
       } else {
         z[category] = {
