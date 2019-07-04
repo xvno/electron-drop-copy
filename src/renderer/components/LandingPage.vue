@@ -127,13 +127,29 @@ export default {
   },
   methods: {
     formatData(list) {
-      return list.map(i => {
-        return {
-          uid: i.uid,
-          origin: i.origin,
-          progress: Math.floor((i.trxed / i.total) * 100)
+      let z = this
+      list.forEach(f => {
+        switch (z.checkFileStatus(f)) {
+          case 2:
+            z.setFileAsFinished(f)
+            break
+          case 1:
+            z.setFileAsToFinish(f)
+            break
+          case 0:
+            z.setFileAsTrxing(f)
+            break
+          default:
+            let msg = '错误的数据格式, file.status 错误'
+            console.log(msg)
+            z.errors['data'].push(msg)
         }
       })
+      return [
+        ...Object.values(z.fileRecords),
+        ...Object.values(z.fileRecordsToFinish),
+        ...Object.values(z.fileRecordsTrxing)
+      ]
     },
     checkFileStatus(file) {
       let { trxed, total, status } = file
@@ -156,6 +172,31 @@ export default {
         }
       }
       return ret
+    },
+    storeData() {
+      let totalFiles = {
+        fileRecords: z.fileRecords,
+        fileRecordsToFinish: z.fileRecordsToFinish,
+        fileRecordsTrxing: z.fileRecordsTrxing
+      }
+      if (z.checkStoreAvailable()) {
+        z.store.setItem(JSON.stringify(totalFiles))
+      }
+    },
+    restoreData() {
+      if (z.checkStoreAvailable()) {
+        let totalFiles = null
+        let storedData = z.store.getItem('totalFiles')
+        if (storedData) {
+          try {
+            totalFiles = JSON.parse(storedData)
+          } catch (e) {
+            let msg = '读取历史记录出错, store 错误'
+            console.log(msg)
+            z.errors['store'].push(msg)
+          }
+        }
+      }
     },
     setFileAsFinished(file) {
       if (this.fileRecordsTrxing[file.uid]) {
