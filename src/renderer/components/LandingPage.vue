@@ -87,8 +87,8 @@ export default {
     let z = this
     z.name = une.getName()
     let ws = null
-    // let wsUri = 'ws://localhost:8080/files_trans'
-    let wsUri = 'ws://localhost:3333/ws'
+    let wsUri = 'ws://localhost:8080/files_trans'
+    // let wsUri = 'ws://localhost:3333/ws'
     try {
       ws = z.ws = new WebSocket(wsUri)
     } catch (e) {
