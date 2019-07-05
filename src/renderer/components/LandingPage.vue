@@ -368,7 +368,8 @@ export default {
             console.log(event.dataTransfer.files[i])
             var file = event.dataTransfer.items[i].getAsFile()
             console.log('... file[' + i + '].name = ' + file.name)
-            z.files.push({ name: file.name, origin: file.path })
+            z.files.push({ origin: file.path }) //name: file.name,
+            // z.files.push({ name: file.name, origin: file.path })
           }
         }
       } else {
@@ -377,7 +378,8 @@ export default {
           console.log(
             '... file[' + i + '].name = ' + event.dataTransfer.files[i].name
           )
-          z.files.push({ name: file.name, origin: file.path })
+          z.files.push({ origin: file.path }) // name: file.name,
+          // z.files.push({ name: file.name, origin: file.path })
         }
       }
       if (z.files.length > 0) {
