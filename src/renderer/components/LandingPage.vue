@@ -271,7 +271,12 @@ export default {
       })
     },
     preformatFile(file) {
-      file.progress = Math.floor((100 * file.trxed) / file.total)
+       let progress = Math.floor((100 * file.trxed) / file.total)
+       if(progress > 0 && progress <=100){
+         file.progress = progress
+       } else {
+         file.progress = 0
+       }
     },
     getFileRecords() {
       if (this.checkStoreAvailable()) {
