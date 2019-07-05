@@ -1,16 +1,17 @@
 <template>
   <div id="wrapper">
     <!-- <img id="logo" src="~@/assets/logo.png" alt="electron-vue"> -->
-    <main v-loading="connecting" element-loading-text="连接失败">
+    <main>
       <el-container>
         <el-header>
-          <el-button type="primary" round @click="openFile()">Open</el-button>
-          <el-button type="success" round @click="saveFile()">Save</el-button>
-          <el-button type="info" round @click="list()">List</el-button>
-          <el-button type="warning" round @click="watchit()">Watch</el-button>
-          <el-button type="danger" round @click="offwatchit()">Stop Watching</el-button>
+          <!-- <el-button type="primary" round @click="openFile()">Open</el-button>
+          <el-button type="success" round @click="saveFile()">Save</el-button>-->
+          <el-button type="warning" round @click="reConnect()">重连</el-button>
+          <el-button type="info" round @click="list()" :disabled="connecting">List</el-button>
+          <el-button type="success" round @click="watchit()" :disabled="connecting">Watch</el-button>
+          <el-button type="danger" round @click="offwatchit()" :disabled="connecting">Stop Watching</el-button>
         </el-header>
-        <el-container>
+        <el-container v-loading="connecting" element-loading-text="连接失败">
           <el-aside width="200px">
             <div class="grid-content bg-purple dropzone" @drop="drop" @dragover="dragover"></div>
           </el-aside>
@@ -68,7 +69,8 @@ export default {
       store: null,
       fileRecords: [],
       fileRecordsToFinish: [],
-      fileRecordsTrxing: []
+      fileRecordsTrxing: [],
+      wsUri: 'ws://localhost:8080/files_trans'
     }
   },
   computed: {
@@ -86,55 +88,8 @@ export default {
     this.restoreData()
     let z = this
     z.name = une.getName()
-    let ws = null
-    let wsUri = 'ws://localhost:8080/files_trans'
     // let wsUri = 'ws://localhost:3333/ws'
-    try {
-      ws = z.ws = new WebSocket(wsUri)
-    } catch (e) {
-      alert('Websocket: connecting error')
-      console.log(e)
-    }
-
-    ws.onerror = function(e) {
-      if (ws.readyState !== 1) {
-        alert('Websocket: 连接失败', wsUri)
-      }
-    }
-
-    ws.onopen = function(e) {
-      z.connecting = false
-      alert('Websocket: 成功连接到ws服务!')
-      z.proxy = new Proxy(ws)
-      z.proxy.ready = true
-    }
-    ws.onmessage = e => {
-      //   console.log(e)
-      try {
-        let ret = JSON.parse(e.data)
-        let { cmd, data } = ret
-        switch (cmd) {
-          case 'list':
-            // this.formatData(data.list)
-            break
-          case 'upload':
-            // this.formatData(data.list)
-            break
-          case 'watch':
-            // this.formatData(data.list)
-            break
-          case 'offwatch':
-            // this.formatData(data.list)
-            break
-          default:
-            alert('天啊, 你到底输入了啥命令?!')
-        }
-        this.formatData(data.list)
-      } catch (e) {
-        console.log(e)
-      }
-    }
-    ws.onclose = () => (z.proxy.ready = false)
+    this.connect()
   },
   beforeRouteLeave(to, from, next) {
     this.store()
@@ -143,6 +98,64 @@ export default {
     this.store()
   },
   methods: {
+    connect() {
+      let z = this
+      let ws = null
+      try {
+        ws = z.ws = new WebSocket(z.wsUri)
+      } catch (e) {
+        alert('Websocket: connecting error')
+        console.log(e)
+      }
+
+      ws.onerror = function(e) {
+        if (ws.readyState !== 1) {
+          alert('Websocket: 连接失败', wsUri)
+          this.connecting = true;
+        }
+      }
+
+      ws.onopen = function(e) {
+        z.connecting = false
+        alert('Websocket: 成功连接到ws服务!')
+        z.proxy = new Proxy(ws)
+        z.proxy.ready = true
+      }
+      ws.onmessage = e => {
+        //   console.log(e)
+        try {
+          let ret = JSON.parse(e.data)
+          let { cmd, data } = ret
+          switch (cmd) {
+            case 'list':
+              // this.formatData(data.list)
+              break
+            case 'upload':
+              // this.formatData(data.list)
+              break
+            case 'watch':
+              // this.formatData(data.list)
+              break
+            case 'offwatch':
+              // this.formatData(data.list)
+              break
+            default:
+              alert('天啊, 你到底输入了啥命令?!')
+          }
+          this.formatData(data.list)
+        } catch (e) {
+          console.log(e)
+        }
+      }
+      ws.onclose = () => (z.proxy.ready = false)
+    },
+    reConnect() {
+      let z = this;
+      if(z.ws && z.ws.readyState === 1) {
+        z.ws.close();
+      }
+      z.connect();
+    },
     formatData(list) {
       let z = this
       list.forEach(f => {
@@ -271,12 +284,12 @@ export default {
       })
     },
     preformatFile(file) {
-       let progress = Math.floor((100 * file.trxed) / file.total)
-       if(progress > 0 && progress <=100){
-         file.progress = progress
-       } else {
-         file.progress = 0
-       }
+      let progress = Math.floor((100 * file.trxed) / file.total)
+      if (progress > 0 && progress <= 100) {
+        file.progress = progress
+      } else {
+        file.progress = 0
+      }
     },
     getFileRecords() {
       if (this.checkStoreAvailable()) {
