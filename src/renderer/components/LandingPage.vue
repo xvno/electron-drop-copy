@@ -17,9 +17,11 @@
           </el-aside>
           <el-container>
             <el-main>
-              <!-- <div class="doc" v-show="filedata.length > 0">
+              <!--
+              <div class="doc" v-show="filedata.length > 0">
                                 <p ref="data">{{filedata}}</p>
-              </div>-->
+              </div>
+              -->
               <el-table :data="tableData" stripe style="width: 100%">
                 <el-table-column prop="uid" label="uid" max-width="180"></el-table-column>
                 <el-table-column prop="origin" label="Origin" max-width="180"></el-table-column>
@@ -50,8 +52,6 @@ import une from 'api/une'
 import { Proxy } from 'api/deux'
 import Vue from 'Vue'
 
-// import { dropHandler, ondragoverHandler } from 'api/due'
-
 export default {
   name: 'landing-page',
   components: { SystemInformation },
@@ -62,7 +62,6 @@ export default {
       files: [],
       ws: null,
       proxy: null,
-      //   tableData: [],
       connecting: true,
       messages: {},
       errors: [],
@@ -70,7 +69,7 @@ export default {
       fileRecords: [],
       fileRecordsToFinish: [],
       fileRecordsTrxing: [],
-      wsUri: 'ws://localhost:8080/files_trans'
+      wsUri: 'ws://localhost:8080/files_trans' // 'ws://localhost:3333/ws'
     }
   },
   computed: {
@@ -88,7 +87,6 @@ export default {
     this.restoreData()
     let z = this
     z.name = une.getName()
-    // let wsUri = 'ws://localhost:3333/ws'
     this.connect()
   },
   beforeRouteLeave(to, from, next) {
