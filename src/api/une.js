@@ -59,10 +59,8 @@ module.exports.saveFile = function (data, fn) {
 //     password: '1234',
 // });
 // module.exports.showSambaOpenDialog = function () {
-
 // };
 // module.exports.showSambaSaveDialog = function () {
-
 // };
 
 module.exports.dropHandler = function (event) {

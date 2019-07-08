@@ -1,6 +1,5 @@
 <template>
   <div id="wrapper">
-    <!-- <img id="logo" src="~@/assets/logo.png" alt="electron-vue"> -->
     <main>
       <el-container>
         <el-header>
@@ -17,23 +16,30 @@
           </el-aside>
           <el-container>
             <el-main>
-              <!--
-              <div class="doc" v-show="filedata.length > 0">
-                                <p ref="data">{{filedata}}</p>
-              </div>
-              -->
               <el-table :data="tableData" stripe style="width: 100%">
                 <el-table-column prop="uid" label="uid" max-width="180"></el-table-column>
                 <el-table-column prop="origin" label="Origin" max-width="180"></el-table-column>
                 <el-table-column prop="progress" label="Progress">
                   <template slot-scope="scope">
                     <el-progress :percentage="scope.row.progress"></el-progress>
-                    <!-- <el-button
-                                            @click="handleClick(scope.row)"
-                                            type="text"
-                                            size="small"
-                                        >查看</el-button>
-                    <el-button type="text" size="small">编辑</el-button>-->
+                    <el-button
+                      v-if="scope.row.paused || scope.row.trxed < scope.row.total"
+                      @click="resumeUpload(scope.row)"
+                      type="primary"
+                      size="small"
+                    >继续上传</el-button>
+                    <el-button
+                      v-if="scope.row.trxing"
+                      @click="pauseUpload(scope.row)"
+                      type="primary"
+                      size="small"
+                    >暂停上传</el-button>
+                    <el-button
+                      @click="removeFile(scope.row)"
+                      type="danger"
+                      size="small"
+                    >删除</el-button>
+                    <!-- <el-button type="text" size="small">编辑</el-button> -->
                   </template>
                 </el-table-column>
               </el-table>
@@ -47,14 +53,12 @@
 </template>
 
 <script>
-import SystemInformation from './LandingPage/SystemInformation'
 import une from 'api/une'
 import { Proxy } from 'api/deux'
 import Vue from 'Vue'
 
 export default {
   name: 'landing-page',
-  components: { SystemInformation },
   data() {
     return {
       name: '',
@@ -66,9 +70,16 @@ export default {
       messages: {},
       errors: [],
       store: null,
+      fileCategories: [
+        'fileRecords',
+        'fileRecordsToFinish',
+        'fileRecordsTrxing',
+        'fileRecordsPaused'
+      ],
       fileRecords: [],
       fileRecordsToFinish: [],
       fileRecordsTrxing: [],
+      fileRecordsPaused: [],
       wsUri: 'ws://localhost:8080/files_trans' // 'ws://localhost:3333/ws'
     }
   },
@@ -78,22 +89,24 @@ export default {
       return [
         ...Object.values(z.fileRecords),
         ...Object.values(z.fileRecordsToFinish),
-        ...Object.values(z.fileRecordsTrxing)
+        ...Object.values(z.fileRecordsTrxing),
+        ...Object.values(z.fileRecordsPaused)
       ]
     }
   },
   created() {
-    this.store = localStorage
-    this.restoreData()
     let z = this
+    z.store = localStorage
+    z.restoreData()
+
     z.name = une.getName()
-    this.connect()
+    z.connect()
   },
   beforeRouteLeave(to, from, next) {
-    this.store()
+    this.storeData()
   },
   beforeDestroy() {
-    this.store()
+    this.storeData()
   },
   methods: {
     connect() {
@@ -108,8 +121,8 @@ export default {
 
       ws.onerror = function(e) {
         if (ws.readyState !== 1) {
-          alert('Websocket: 连接失败', wsUri)
-          this.connecting = true;
+          alert('Websocket: 连接失败', z.wsUri)
+          z.connecting = true
         }
       }
 
@@ -118,41 +131,49 @@ export default {
         alert('Websocket: 成功连接到ws服务!')
         z.proxy = new Proxy(ws)
         z.proxy.ready = true
+        z.list()
       }
       ws.onmessage = e => {
-        //   console.log(e)
         try {
           let ret = JSON.parse(e.data)
           let { cmd, data } = ret
           switch (cmd) {
             case 'list':
-              // this.formatData(data.list)
+              // z.formatData(data.list)
               break
             case 'upload':
-              // this.formatData(data.list)
+              // z.formatData(data.list)
               break
             case 'watch':
-              // this.formatData(data.list)
+              // z.formatData(data.list)
               break
             case 'offwatch':
-              // this.formatData(data.list)
+              // z.formatData(data.list)
               break
+            case 'pause':
+              break;
+            case 'remove':
+              break;
             default:
               alert('天啊, 你到底输入了啥命令?!')
           }
-          this.formatData(data.list)
+          z.formatData(data.list)
         } catch (e) {
           console.log(e)
         }
       }
-      ws.onclose = () => (z.proxy.ready = false)
+      ws.onclose = () => {
+        if (z.proxy) {
+          z.proxy.ready = false
+        }
+      }
     },
     reConnect() {
-      let z = this;
-      if(z.ws && z.ws.readyState === 1) {
-        z.ws.close();
+      let z = this
+      if (z.ws && z.ws.readyState === 1) {
+        z.ws.close()
       }
-      z.connect();
+      z.connect()
     },
     formatData(list) {
       let z = this
@@ -177,11 +198,6 @@ export default {
             z.errors['data'].push(msg)
         }
       })
-      return [
-        ...Object.values(z.fileRecords),
-        ...Object.values(z.fileRecordsToFinish),
-        ...Object.values(z.fileRecordsTrxing)
-      ]
     },
     checkFileStatus(file) {
       let { trxed, total, status } = file
@@ -206,11 +222,11 @@ export default {
       return ret
     },
     storeData() {
-      let totalFiles = {
-        fileRecords: z.fileRecords,
-        fileRecordsToFinish: z.fileRecordsToFinish,
-        fileRecordsTrxing: z.fileRecordsTrxing
-      }
+      let z = this
+      let totalFiles = {}
+      z.fileCategories.forEach(category => {
+        totalFiles[category] = z[category]
+      })
       if (z.checkStoreAvailable()) {
         z.store.setItem(JSON.stringify(totalFiles))
       }
@@ -229,9 +245,9 @@ export default {
             z.errors['store'].push(msg)
           }
         }
-        z.fileRecords = totalFiles.fileRecords || {}
-        z.fileRecordsToFinish = totalFiles.fileRecordsToFinish || {}
-        z.fileRecordsTrxing = totalFiles.fileRecordsTrxing || {}
+        z.fileCategories.forEach(category => {
+          z[category] = totalFiles[category] || {}
+        })
       }
     },
     setFileAsFinished(file) {
@@ -251,14 +267,23 @@ export default {
     setFileAsTrxing(file) {
       this.setFile(file, 'fileRecordsTrxing')
     },
+    setFileAsPaused(file) {
+      this.setFile(file, 'fileRecordsPaused')
+    },
     setFile(file, category) {
       let z = this
-      let categories = [
-        'fileRecords',
-        'fileRecordsToFinish',
-        'fileRecordsTrxing'
-      ]
+      let categories = [...z.fileCategories]
       let dataHolder = z[category]
+      if (category === 'fileRecordsTrxing') {
+        file.trxing = true
+        file.paused = false
+      } else if (category === 'fileRecordsPaused') {
+        file.trxing = false
+        file.paused = true
+      } else {
+        delete file['fileRecordsTrxing']
+        delete file['fileRecordsPaused']
+      }
       if (dataHolder) {
         // Vue.set()
         // dataHolder[file.uid] = file
@@ -289,62 +314,43 @@ export default {
         file.progress = 0
       }
     },
-    getFileRecords() {
-      if (this.checkStoreAvailable()) {
-        try {
-          let stored = this.store.getItem('fileRecords')
-          this.fileRecords = stored && JSON.parse(stored)
-        } catch (e) {
-          console.log(e)
-          this.errors.push('Stored file list not available')
+    resumeUpload(file) {
+      let z = this
+      if (file.paused) {
+        z.proxy.send('upload', {
+          origin: [Object.assign({ offset: file.trxed }, file)],
+          list: [{trxed: file.trxed, origin: file.origin}]
+        })
+        file.trxing = true
+        file.paused = false
+      }
+    },
+    pauseUpload(file) {
+      console.log(file)
+      let z = this
+      if (file.trxing) {
+        z.proxy.send('pause', {
+          list: [{uid: file.uid}]
+        })
+        file.trxing = false
+        file.paused = true
+      }
+      z.setFileAsPaused(file)
+    },
+    removeFile (file) {
+      this.proxy.send('remove', {
+        list: [{uid: file.uid}]
+      })
+      this.removeFileFromList(file)
+    },
+    removeFileFromList(file) {
+      this.fileCategories.forEach(cat => {
+        let list = this[cat];
+        if(list) {
+          delete list[file.uid]
         }
-      }
+      })
     },
-    getFileRecordsToFinish() {
-      if (this.checkStoreAvailable()) {
-        try {
-          let stored = this.store.getItem('fileRecordsToFinish')
-          this.fileRecordsToFinish = stored && JSON.parse(stored)
-        } catch (e) {
-          console.log(e)
-          this.errors.push('Stored file list not available')
-        }
-      }
-    },
-    getFileRecordsTrxing() {
-      if (this.checkStoreAvailable()) {
-        try {
-          let stored = this.store.getItem('fileRecordsTrxing')
-          this.fileRecordsTrxing = stored && JSON.parse(stored)
-        } catch (e) {
-          console.log(e)
-          this.errors.push('Stored file list not available')
-        }
-      }
-    },
-
-    storeFileRecords() {
-      if (this.checkStoreAvailable()) {
-        this.store.setItem('fileRecords', JSON.stringify(this.fileRecords))
-      }
-    },
-    storeFileRecordsToFinish() {
-      if (this.checkStoreAvailable()) {
-        this.store.setItem(
-          'fileRecordsToFinish',
-          JSON.stringify(this.fileRecordsToFinish)
-        )
-      }
-    },
-    storeFileRecordsTrxing() {
-      if (this.checkStoreAvailable()) {
-        this.store.setItem(
-          'fileRecordsTrxing',
-          JSON.stringify(this.fileRecordsTrxing)
-        )
-      }
-    },
-
     open(link) {
       this.$electron.shell.openExternal(link)
     },
