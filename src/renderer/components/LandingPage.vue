@@ -318,8 +318,7 @@ export default {
       let z = this
       if (file.paused) {
         z.proxy.send('upload', {
-          origin: [Object.assign({ offset: file.trxed }, file)],
-          list: [{trxed: file.trxed, origin: file.origin}]
+          list: [{resume: true, origin: file.origin}]
         })
         file.trxing = true
         file.paused = false
