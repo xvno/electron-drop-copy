@@ -463,7 +463,7 @@ main {
 
 .dropzone {
   background-color: antiquewhite;
-  border-radius: 1em;
+  /* border-radius: 1em; */
   position: absolute;
   top: 0;
   right: 0;
@@ -489,7 +489,7 @@ main {
 }
 .el-main {
   background-color: aquamarine;
-  border-radius: 1em;
+  /* border-radius: 1em; */
   margin-left: 0.5em;
 }
 aside {
