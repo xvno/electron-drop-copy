@@ -94,15 +94,15 @@ export default {
   created() {
     let z = this
     z.store = localStorage
-    z.restoreData()
+    // z.restoreData()
     z.name = une.getName()
     z.connect()
   },
   beforeRouteLeave(to, from, next) {
-    this.storeData()
+    // this.storeData()
   },
   beforeDestroy() {
-    this.storeData()
+    // this.storeData()
   },
   methods: {
     connect() {
@@ -131,9 +131,6 @@ export default {
       }
       ws.onmessage = e => {
         try {
-          console.log('heya----------')
-          console.log(e.data)
-          console.log('----------yahe')
           let ret = JSON.parse(e.data)
           if(ret.code !== '200') {
               if(ret.code > 300) {
@@ -281,37 +278,37 @@ export default {
       }
       return ret
     },
-    storeData() {
-      let z = this
-      let totalFiles = {}
-      let fileCategories = Object.keys(z.fileRecords)
-      fileCategories.forEach(category => {
-        totalFiles[category] = z[category]
-      })
-      if (z.checkStoreAvailable()) {
-        z.store.setItem('__ff_recordFiles', JSON.stringify(totalFiles))
-      }
-    },
-    restoreData() {
-      let z = this
-      if (z.checkStoreAvailable()) {
-        let totalFiles = {}
-        let storedData = z.store.getItem('__ff_recordFiles')
-        if (storedData) {
-          try {
-            totalFiles = JSON.parse(storedData)
-          } catch (e) {
-            let msg = '读取历史记录出错, store 错误'
-            console.log(msg)
-            z.errors['store'].push(msg)
-          }
-        }
-        let fileCategories = Object.keys(z.fileRecords)
-        fileCategories.forEach(category => {
-          z[category] = totalFiles[category] || {}
-        })
-      }
-    },
+    // storeData() {
+    //   let z = this
+    //   let totalFiles = {}
+    //   let fileCategories = Object.keys(z.fileRecords)
+    //   fileCategories.forEach(category => {
+    //     totalFiles[category] = z[category]
+    //   })
+    //   if (z.checkStoreAvailable()) {
+    //     z.store.setItem('__ff_recordFiles', JSON.stringify(totalFiles))
+    //   }
+    // },
+    // restoreData() {
+    //   let z = this
+    //   if (z.checkStoreAvailable()) {
+    //     let totalFiles = {}
+    //     let storedData = z.store.getItem('__ff_recordFiles')
+    //     if (storedData) {
+    //       try {
+    //         totalFiles = JSON.parse(storedData)
+    //       } catch (e) {
+    //         let msg = '读取历史记录出错, store 错误'
+    //         console.log(msg)
+    //         z.errors['store'].push(msg)
+    //       }
+    //     }
+    //     let fileCategories = Object.keys(z.fileRecords)
+    //     fileCategories.forEach(category => {
+    //       z[category] = totalFiles[category] || {}
+    //     })
+    //   }
+    // },
     setFileAsFinished(file) {
       this.setFile(file, 'finished')
     },
