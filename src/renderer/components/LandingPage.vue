@@ -21,26 +21,26 @@
                   <template slot-scope="scope">
                     <el-progress :percentage="scope.row.progress"></el-progress>
                     <el-button
-                      v-if="scope.row.status === 5 || scope.row.trxed < scope.row.total"
+                      v-if="scope.row.status === states.PAUSED || scope.row.trxed < scope.row.total"
                       @click="resumeUpload(scope.row)"
                       type="primary"
                       size="small"
                     >继续上传</el-button>
                     <el-button
-                      v-if="scope.row.status === 1"
+                      v-if="scope.row.status === states.TRXING"
                       @click="pauseUpload(scope.row)"
                       type="primary"
                       size="small"
                     >暂停上传</el-button>
                     <el-button
-                      v-if="scope.row.status === 0 || scope.row.status === 1 || scope.row.status === 5"
+                      v-if="scope.row.status === states.WAITING || scope.row.status === states.TRXING || scope.row.status === states.PAUSED"
                       @click="removeFile(scope.row)"
                       type="danger"
                       size="small"
                     >删除</el-button>
                   </template>
                 </el-table-column>
-                <el-table-column prop="statusText" label="Origin" max-width="180"></el-table-column>
+                <el-table-column prop="statusText" label="状态" max-width="180"></el-table-column>
               </el-table>
             </el-main>
           </el-container>
@@ -52,7 +52,7 @@
 
 <script>
 import une from 'api/une'
-import { Proxy, cmds } from 'api/deux'
+import { Proxy, cmds, states } from 'api/deux'
 import { showFormatError, showResponseStatusError } from 'api/errors'
 import Vue from 'Vue'
 
@@ -146,6 +146,9 @@ export default {
               }
           }
           if(!ret.data) {
+            console.log('No data')
+            console.log(ret)
+            console.log('heya----------1');
             return showFormatError(e.data)
           }
           let { cmd, data } = ret
@@ -177,6 +180,7 @@ export default {
           if(cmds.indexOf(cmd) > -1) {
             z.formatData(data.list)
           } else {
+            console.log('heya----------2');
             showFormatError();
           }
         } catch (e) {
@@ -210,8 +214,10 @@ export default {
           case 1:
             if (f.progress > 99) {
               f.progress = 99
+              z.setFileAsToFinish(f)
+            } else {
+              z.setFileAsTrxing(f)
             }
-            z.setFileAsToFinish(f)
             break
           case 3:
             z.setFileAsFailed(f)
@@ -223,9 +229,10 @@ export default {
             z.setFileAsRemoved(f)
             break
           case 0:
-            z.setFileAsTrxing(f)
+            z.setFileAsWaiting(f)
             break
           default:
+            console.log('heya----------3');
             showFormatError()
             // let msg = '错误的数据格式, file.status 错误'
             // z.errors['data'].push(msg)
@@ -337,6 +344,9 @@ export default {
     setFileAsFinished(file) {
       this.setFile(file, 'finished')
     },
+    setFileAsWaiting(file) {
+      this.setFile(file, 'waiting')
+    },
     setFileAsToFinish(file) {
       this.setFile(file, 'toFinish')
     },
@@ -359,7 +369,9 @@ export default {
       this.setFile(file, 'trxing')
     },
     setFile(file, category) {
-      if(!file.uid || !file.status) {
+      debugger
+      if(!file.uid || [0,1,2,3,5,6].indexOf(file.status)=== -1 ) {
+        console.log(file)
         return showFormatError()
       }
       let z = this
@@ -367,6 +379,9 @@ export default {
       let dataHolder = fileRecords[category] // categorized data: finished, toFinish
       let stext = ''
       switch (category) {
+        case 'waiting':
+          stext = '准备传输...'
+          break
         case 'finished':
           stext = '已完成'
           break
@@ -427,7 +442,7 @@ export default {
     },
     resumeUpload(file) {
       let z = this
-      if (file.paused) {
+      if (file.status === states.PAUSED) {
         z.proxy.send('resume', {
           list: [{ uid: file.uid }]
         })
@@ -436,7 +451,7 @@ export default {
     pauseUpload(file) {
       console.log(file)
       let z = this
-      if (file.trxing) {
+      if (file.status === states.TRXING) {
         z.proxy.send('pause', {
           list: [{ uid: file.uid }]
         })
