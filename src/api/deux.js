@@ -8,12 +8,13 @@ function initMessage(cmd, opt) {
         opt: opt || {}
     }
 }
-
+export const cmds = ['upload', 'list', 'pause', 'resume', 'remove', 'watch', 'offwatch']
+// module.exports.cmds = cmds
 export function Proxy(ws, ecb = console.log) {
     this.ws = ws;
     this.ready = false;
     this.ecb = ecb;
-    this.methodsNames = ['upload', 'list', 'pause', 'resume', 'remove', 'watch', 'offwatch'];
+    this.methodsNames = cmds;
     return this;
 }
 

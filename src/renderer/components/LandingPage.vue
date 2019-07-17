@@ -52,7 +52,7 @@
 
 <script>
 import une from 'api/une'
-import { Proxy } from 'api/deux'
+import { Proxy, cmds } from 'api/deux'
 import { showFormatError, showResponseStatusError } from 'api/errors'
 import Vue from 'Vue'
 
@@ -111,7 +111,7 @@ export default {
       try {
         ws = z.ws = new WebSocket(z.wsUri)
       } catch (e) {
-        alert('Websocket: connecting error')
+        alert('Websocket: 建立连接出错')
         console.log(e)
       }
 
@@ -131,9 +131,10 @@ export default {
       }
       ws.onmessage = e => {
         try {
+          console.log(e)
           let ret = JSON.parse(e.data)
           if(ret.code !== '200') {
-              if(ret.code > 300) {
+              if(ret.code >= 300) {
                 return showResponseStatusError(ret.msg)
               }
           }
@@ -141,25 +142,35 @@ export default {
             return showFormatError(e.data)
           }
           let { cmd, data } = ret
-          switch (cmd) {
-            case 'list':
-              z.formatData(data.list)
-              break
-            case 'upload':
-              z.formatData(data.list)
-              break
-            case 'watch':
-              break
-            case 'offwatch':
-              break
-            case 'pause':
-              break
-            case 'resume':
-              break
-            case 'remove':
-              break
-            default:
-              alert('未知命令')
+          // switch (cmd) {
+          //   case 'list':
+          //     z.formatData(data.list)
+          //     break
+          //   case 'upload':
+          //     z.formatData(data.list)
+          //     break
+          //   case 'watch':
+          //     z.formatData(data.list)
+          //     break
+          //   case 'offwatch':
+          //     z.formatData(data.list)
+          //     break
+          //   case 'pause':
+          //     z.formatData(data.list)
+          //     break
+          //   case 'resume':
+          //     z.formatData(data.list)
+          //     break
+          //   case 'remove':
+          //     z.formatData(data.list)
+          //     break
+          //   default:
+          //     alert('未知命令')
+          // }
+          if(cmds.indexOf(cmd) > -1) {
+            z.formatData(data.list)
+          } else {
+            showFormatError();
           }
         } catch (e) {
           console.log(e)
@@ -208,8 +219,9 @@ export default {
             z.setFileAsTrxing(f)
             break
           default:
-            let msg = '错误的数据格式, file.status 错误'
-            z.errors['data'].push(msg)
+            showFormatError()
+            // let msg = '错误的数据格式, file.status 错误'
+            // z.errors['data'].push(msg)
         }
       })
     },
@@ -227,6 +239,12 @@ export default {
         type: ''
       }
       switch (status) {
+        case 0:
+          s = {
+            code: 0,
+            type: 'waiting'
+          }
+          break
         case 1:
           s = {
             code: 1,
@@ -259,8 +277,8 @@ export default {
           break
         default:
           s = {
-            code: 0,
-            type: 'waiting'
+            code: -1,
+            type: 'unknown'
           }
           break
       }
@@ -321,7 +339,7 @@ export default {
     setFileAsPaused(file) {
       this.setFile(file, 'paused')
     },
-    setFileAsPaused(file) {
+    setFileAsPausing(file) {
       this.setFile(file, 'pausing')
     },
     setFileAsRemoved(file) {
@@ -416,7 +434,7 @@ export default {
           list: [{ uid: file.uid }]
         })
       }
-      z.setFileAsPaused(file)
+      z.setFileAsPausing(file)
     },
     removeFile(file) {
       this.proxy.send('remove', {
@@ -425,12 +443,15 @@ export default {
       this.setFileAsRemoving(file)
     },
     removeFileFromList(file) {
-      this.fileCategories.forEach(cat => {
-        let list = this[cat]
+      let fileRecords = this.fileRecords
+      let cats = Object.keys(fileRecords)
+      cats.forEach(cat => {
+        let list = fileRecords[cat]
         if (list) {
           delete list[file.uid]
         }
       })
+      this.fileRecords = Object.assign({}, fileRecords);
     },
     open(link) {
       this.$electron.shell.openExternal(link)
@@ -454,7 +475,7 @@ export default {
     showSaveGoDialog() {},
     drop(event) {
       let z = this
-      console.log('File(s) dropped')
+      // console.log('File(s) dropped')
       z.files = []
       event.preventDefault()
       event.stopPropagation()
@@ -463,9 +484,9 @@ export default {
         for (var i = 0; i < event.dataTransfer.items.length; i++) {
           // If dropped items aren't files, reject them
           if (event.dataTransfer.items[i].kind === 'file') {
-            console.log(event.dataTransfer.files[i])
+            // console.log(event.dataTransfer.files[i])
             var file = event.dataTransfer.items[i].getAsFile()
-            console.log('... file[' + i + '].name = ' + file.name)
+            // console.log('... file[' + i + '].name = ' + file.name)
             z.files.push({ origin: file.path }) //name: file.name,
             // z.files.push({ name: file.name, origin: file.path })
           }
@@ -473,9 +494,7 @@ export default {
       } else {
         // Use DataTransfer interface to access the file(s)
         for (var i = 0; i < event.dataTransfer.files.length; i++) {
-          console.log(
-            '... file[' + i + '].name = ' + event.dataTransfer.files[i].name
-          )
+          // console.log('... file[' + i + '].name = ' + event.dataTransfer.files[i].name)
           z.files.push({ origin: file.path }) // name: file.name,
           // z.files.push({ name: file.name, origin: file.path })
         }

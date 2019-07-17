@@ -1,6 +1,6 @@
 export function showFormatError(msg='') {
-  return alert(`数据格式不正确\n ${msg}`)
+  return alert(`响应数据格式\n ${msg}`)
 }
 export function showResponseStatusError(msg='') {
-  return alert(`数据状态不正确\n ${msg}`)
+  return alert(`响应数据状态\n ${msg}`)
 }
