@@ -21,19 +21,19 @@
                   <template slot-scope="scope">
                     <el-progress :percentage="scope.row.progress"></el-progress>
                     <el-button
-                      v-if="scope.row.status === states.PAUSED || scope.row.trxed < scope.row.total"
+                      v-if="scope.row.status === 5 || scope.row.trxed < scope.row.total"
                       @click="resumeUpload(scope.row)"
                       type="primary"
                       size="small"
                     >继续上传</el-button>
                     <el-button
-                      v-if="scope.row.status === states.TRXING"
+                      v-if="scope.row.status === 1"
                       @click="pauseUpload(scope.row)"
                       type="primary"
                       size="small"
                     >暂停上传</el-button>
                     <el-button
-                      v-if="scope.row.status === states.WAITING || scope.row.status === states.TRXING || scope.row.status === states.PAUSED"
+                      v-if="scope.row.status === 0 || scope.row.status === 1 || scope.row.status === 5"
                       @click="removeFile(scope.row)"
                       type="danger"
                       size="small"
@@ -52,7 +52,7 @@
 
 <script>
 import une from 'api/une'
-import { Proxy, cmds, states } from 'api/deux'
+import { Proxy, cmds } from 'api/deux'
 import { showFormatError, showResponseStatusError } from 'api/errors'
 import Vue from 'Vue'
 
@@ -442,7 +442,7 @@ export default {
     },
     resumeUpload(file) {
       let z = this
-      if (file.status === states.PAUSED) {
+      if (file.status === 5) {
         z.proxy.send('resume', {
           list: [{ uid: file.uid }]
         })
@@ -451,7 +451,7 @@ export default {
     pauseUpload(file) {
       console.log(file)
       let z = this
-      if (file.status === states.TRXING) {
+      if (file.status === 1) {
         z.proxy.send('pause', {
           list: [{ uid: file.uid }]
         })
