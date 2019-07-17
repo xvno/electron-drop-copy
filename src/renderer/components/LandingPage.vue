@@ -21,19 +21,19 @@
                   <template slot-scope="scope">
                     <el-progress :percentage="scope.row.progress"></el-progress>
                     <el-button
-                      v-if="scope.row.paused || scope.row.trxed < scope.row.total"
+                      v-if="scope.row.status === 5 || scope.row.trxed < scope.row.total"
                       @click="resumeUpload(scope.row)"
                       type="primary"
                       size="small"
                     >继续上传</el-button>
                     <el-button
-                      v-if="scope.row.trxing"
+                      v-if="scope.row.status === 1"
                       @click="pauseUpload(scope.row)"
                       type="primary"
                       size="small"
                     >暂停上传</el-button>
                     <el-button
-                      v-if="scope.row.waiting || scope.row.trxing || scope.row.paused"
+                      v-if="scope.row.status === 0 || scope.row.status === 1 || scope.row.status === 5"
                       @click="removeFile(scope.row)"
                       type="danger"
                       size="small"
@@ -84,11 +84,18 @@ export default {
   },
   computed: {
     tableData() {
-      let z = this
-      let data = z.fileRecords.values || []
-      return data.reduce((pre, cur, idx, d) => {
-        return [...pre, ...cur]
+      let data = Object.values(this.fileRecords) || []
+      let ret = data.reduce((pre, cur, idx, d) => {
+        let newCur = cur.filter(i => {
+          if(i && i instanceof Object) {
+            return true
+          }
+          return false
+        })
+        return [...pre, ...newCur]
       }, [])
+      console.log(ret)
+      return ret
     }
   },
   created() {
@@ -193,7 +200,7 @@ export default {
       let z = this
       list.forEach(f => {
         z.preformatFile(f)
-        debugger
+        // debugger
         let s = z.checkFileStatus(f)
         switch (s.code) {
           case 2:
