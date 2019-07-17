@@ -3,8 +3,6 @@
     <main>
       <el-container>
         <el-header>
-          <!-- <el-button type="primary" round @click="openFile()">Open</el-button>
-          <el-button type="success" round @click="saveFile()">Save</el-button>-->
           <el-button type="warning" round @click="reConnect()">重连</el-button>
           <el-button type="info" round @click="list()" :disabled="connecting">List</el-button>
           <el-button type="success" round @click="watchit()" :disabled="connecting">Watch</el-button>
@@ -35,18 +33,18 @@
                       size="small"
                     >暂停上传</el-button>
                     <el-button
+                      v-if="scope.row.waiting || scope.row.trxing || scope.row.paused"
                       @click="removeFile(scope.row)"
                       type="danger"
                       size="small"
                     >删除</el-button>
-                    <!-- <el-button type="text" size="small">编辑</el-button> -->
                   </template>
                 </el-table-column>
+                <el-table-column prop="statusText" label="Origin" max-width="180"></el-table-column>
               </el-table>
             </el-main>
           </el-container>
         </el-container>
-        <!-- <el-footer>Footer</el-footer> -->
       </el-container>
     </main>
   </div>
@@ -55,6 +53,7 @@
 <script>
 import une from 'api/une'
 import { Proxy } from 'api/deux'
+import { showFormatError, showResponseStatusError } from 'api/errors'
 import Vue from 'Vue'
 
 export default {
@@ -70,35 +69,32 @@ export default {
       messages: {},
       errors: [],
       store: null,
-      fileCategories: [
-        'fileRecords',
-        'fileRecordsToFinish',
-        'fileRecordsTrxing',
-        'fileRecordsPaused'
-      ],
-      fileRecords: [],
-      fileRecordsToFinish: [],
-      fileRecordsTrxing: [],
-      fileRecordsPaused: [],
+      fileRecords: {
+        finished: [],
+        toFinish: [],
+        trxing: [],
+        paused: [],
+        pausing: [],
+        removed: [],
+        removing: [],
+        resuming: []
+      },
       wsUri: 'ws://localhost:8080/files_trans' // 'ws://localhost:3333/ws'
     }
   },
   computed: {
     tableData() {
       let z = this
-      return [
-        ...Object.values(z.fileRecords),
-        ...Object.values(z.fileRecordsToFinish),
-        ...Object.values(z.fileRecordsTrxing),
-        ...Object.values(z.fileRecordsPaused)
-      ]
+      let data = z.fileRecords.values || []
+      return data.reduce((pre, cur, idx, d) => {
+        return [...pre, ...cur]
+      }, [])
     }
   },
   created() {
     let z = this
     z.store = localStorage
     z.restoreData()
-
     z.name = une.getName()
     z.connect()
   },
@@ -135,29 +131,39 @@ export default {
       }
       ws.onmessage = e => {
         try {
+          console.log('heya----------')
+          console.log(e.data)
+          console.log('----------yahe')
           let ret = JSON.parse(e.data)
+          if(ret.code !== '200') {
+              if(ret.code > 300) {
+                return showResponseStatusError(ret.msg)
+              }
+          }
+          if(!ret.data) {
+            return showFormatError(e.data)
+          }
           let { cmd, data } = ret
           switch (cmd) {
             case 'list':
-              // z.formatData(data.list)
+              z.formatData(data.list)
               break
             case 'upload':
-              // z.formatData(data.list)
+              z.formatData(data.list)
               break
             case 'watch':
-              // z.formatData(data.list)
               break
             case 'offwatch':
-              // z.formatData(data.list)
               break
             case 'pause':
-              break;
+              break
+            case 'resume':
+              break
             case 'remove':
-              break;
+              break
             default:
-              alert('天啊, 你到底输入了啥命令?!')
+              alert('未知命令')
           }
-          z.formatData(data.list)
         } catch (e) {
           console.log(e)
         }
@@ -179,7 +185,9 @@ export default {
       let z = this
       list.forEach(f => {
         z.preformatFile(f)
-        switch (z.checkFileStatus(f)) {
+        debugger
+        let s = z.checkFileStatus(f)
+        switch (s.code) {
           case 2:
             f.progress = 100
             z.setFileAsFinished(f)
@@ -189,6 +197,15 @@ export default {
               f.progress = 99
             }
             z.setFileAsToFinish(f)
+            break
+          case 3:
+            z.setFileAsFailed(f)
+            break
+          case 5:
+            z.setFileAsPaused(f)
+            break
+          case 6:
+            z.setFileAsRemoved(f)
             break
           case 0:
             z.setFileAsTrxing(f)
@@ -201,13 +218,56 @@ export default {
     },
     checkFileStatus(file) {
       let { trxed, total, status } = file
-      if (status === 2) {
-        return 2 // done
-      } else if (Math.floor(total - trxed) === 0) {
-        return 1 // wait to finish
-      } else {
-        return 0 // transmitting
+      // if (status === 2) {
+      //   return 2 // done
+      // } else if (Math.floor(total - trxed) === 0) {
+      //   return 1 // wait to finish
+      // } else {
+      //   return 0 // transmitting
+      // }
+      let s = {
+        code: 0,
+        type: ''
       }
+      switch (status) {
+        case 1:
+          s = {
+            code: 1,
+            type: 'trxing'
+          }
+          break
+        case 2:
+          s = {
+            code: 2,
+            type: 'succeeded'
+          }
+          break
+        case 3:
+          s = {
+            code: 3,
+            type: 'failed'
+          }
+          break
+        case 5:
+          s = {
+            code: 5,
+            type: 'paused'
+          }
+          break
+        case 6:
+          s = {
+            code: 6,
+            type: 'removed'
+          }
+          break
+        default:
+          s = {
+            code: 0,
+            type: 'waiting'
+          }
+          break
+      }
+      return s
     },
     checkStoreAvailable() {
       let ret = false
@@ -224,18 +284,19 @@ export default {
     storeData() {
       let z = this
       let totalFiles = {}
-      z.fileCategories.forEach(category => {
+      let fileCategories = Object.keys(z.fileRecords)
+      fileCategories.forEach(category => {
         totalFiles[category] = z[category]
       })
       if (z.checkStoreAvailable()) {
-        z.store.setItem(JSON.stringify(totalFiles))
+        z.store.setItem('__ff_recordFiles', JSON.stringify(totalFiles))
       }
     },
     restoreData() {
       let z = this
       if (z.checkStoreAvailable()) {
         let totalFiles = {}
-        let storedData = z.store.getItem('totalFiles')
+        let storedData = z.store.getItem('__ff_recordFiles')
         if (storedData) {
           try {
             totalFiles = JSON.parse(storedData)
@@ -245,66 +306,94 @@ export default {
             z.errors['store'].push(msg)
           }
         }
-        z.fileCategories.forEach(category => {
+        let fileCategories = Object.keys(z.fileRecords)
+        fileCategories.forEach(category => {
           z[category] = totalFiles[category] || {}
         })
       }
     },
     setFileAsFinished(file) {
-      //   if (this.fileRecordsTrxing[file.uid]) {
-      //     delete this.fileRecordsTrxing[file.uid]
-      //   } else if (this.fileRecordsToFinish[file.uid]) {
-      //     delete this.fileRecordsToFinish[file.uid]
-      //   }
-      //   this.fileRecords[file.uid] = file
-      //   Vue.set(this.fileRecords, file.uid, file)
-
-      this.setFile(file, 'fileRecords')
+      this.setFile(file, 'finished')
     },
     setFileAsToFinish(file) {
-      this.setFile(file, 'fileRecordsToFinish')
+      this.setFile(file, 'toFinish')
     },
-    setFileAsTrxing(file) {
-      this.setFile(file, 'fileRecordsTrxing')
+    setFileAsFailed(file) {
+      this.setFile(file, 'failed')
     },
     setFileAsPaused(file) {
-      this.setFile(file, 'fileRecordsPaused')
+      this.setFile(file, 'paused')
+    },
+    setFileAsPaused(file) {
+      this.setFile(file, 'pausing')
+    },
+    setFileAsRemoved(file) {
+      this.setFile(file, 'removed')
+    },
+    setFileAsRemoving(file) {
+      this.setFile(file, 'removing')
+    },
+    setFileAsTrxing(file) {
+      this.setFile(file, 'trxing')
     },
     setFile(file, category) {
-      let z = this
-      let categories = [...z.fileCategories]
-      let dataHolder = z[category]
-      if (category === 'fileRecordsTrxing') {
-        file.trxing = true
-        file.paused = false
-      } else if (category === 'fileRecordsPaused') {
-        file.trxing = false
-        file.paused = true
-      } else {
-        delete file['fileRecordsTrxing']
-        delete file['fileRecordsPaused']
+      if(!file.uid || !file.status) {
+        return showFormatError()
       }
+      let z = this
+      let fileRecords = z.fileRecords
+      let dataHolder = fileRecords[category] // categorized data: finished, toFinish
+      let stext = ''
+      switch (category) {
+        case 'finished':
+          stext = '已完成'
+          break
+        case 'toFinish':
+          stext = '完成中...'
+          break
+        case 'failed':
+          stext = '失败'
+          break
+        case 'paused':
+          stext = '已暂停'
+          break
+        case 'pausing':
+          stext = '暂停中...'
+          break
+        case 'removed':
+          stext = '已删除'
+          break
+        case 'removing':
+          stext = '删除中...'
+          break
+        case 'trxing':
+          stext = '传输中'
+          break
+        default:
+          stext = '未知'
+          break
+      }
+      file.statusText = stext
       if (dataHolder) {
         // Vue.set()
         // dataHolder[file.uid] = file
-        z[category] = Object.assign({}, dataHolder, {
-          [file.uid]: file
-        })
+        dataHolder[file.uid] = file
       } else {
-        z[category] = {
+        fileRecords[category] = {
           [file.uid]: file
         }
       }
-      let index = categories.indexOf(category)
+      let cats = Object.keys(fileRecords)
+      let index = cats.indexOf(category)
       if (index > -1) {
-        categories.splice(index, 1)
+        cats.splice(index, 1)
       }
-      categories.forEach(cat => {
-        if (z[cat] && z[cat][file.uid]) {
-          delete z[cat][file.uid]
-          z[cat] = Object.assign({}, z[cat])
+      cats.forEach(cat => {
+        if (fileRecords[cat] && fileRecords[cat][file.uid]) {
+          delete fileRecords[cat][file.uid]
         }
       })
+      z.fileRecords = Object.assign({}, fileRecords)
     },
     preformatFile(file) {
       let progress = Math.floor((100 * file.trxed) / file.total)
@@ -317,11 +406,9 @@ export default {
     resumeUpload(file) {
       let z = this
       if (file.paused) {
-        z.proxy.send('upload', {
-          list: [{resume: true, origin: file.origin}]
+        z.proxy.send('resume', {
+          list: [{ uid: file.uid }]
         })
-        file.trxing = true
-        file.paused = false
       }
     },
     pauseUpload(file) {
@@ -329,23 +416,21 @@ export default {
       let z = this
       if (file.trxing) {
         z.proxy.send('pause', {
-          list: [{uid: file.uid}]
+          list: [{ uid: file.uid }]
         })
-        file.trxing = false
-        file.paused = true
       }
       z.setFileAsPaused(file)
     },
-    removeFile (file) {
+    removeFile(file) {
       this.proxy.send('remove', {
-        list: [{uid: file.uid}]
+        list: [{ uid: file.uid }]
       })
-      this.removeFileFromList(file)
+      this.setFileAsRemoving(file)
     },
     removeFileFromList(file) {
       this.fileCategories.forEach(cat => {
-        let list = this[cat];
-        if(list) {
+        let list = this[cat]
+        if (list) {
           delete list[file.uid]
         }
       })

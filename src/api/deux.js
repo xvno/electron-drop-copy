@@ -13,7 +13,7 @@ export function Proxy(ws, ecb = console.log) {
     this.ws = ws;
     this.ready = false;
     this.ecb = ecb;
-    this.methodsNames = ['upload', 'list', 'watch', 'offwatch', 'pause', 'remove'];
+    this.methodsNames = ['upload', 'list', 'pause', 'resume', 'remove', 'watch', 'offwatch'];
     return this;
 }
 
