@@ -519,7 +519,7 @@ export default {
         z.proxy.send('upload', {
           list: z.files
         })
-        // z.proxy.send('watch')
+        z.proxy.send('watch')
       }
     },
     dragover(event) {
