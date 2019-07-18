@@ -166,8 +166,30 @@ export default {
         }
       }
       ws.onclose = () => {
+        z.serviceDonw()
         if (z.proxy) {
           z.proxy.ready = false
+        }
+      }
+    },
+    serviceDonw() {
+      let z = this
+      z.markFails(z.fileRecords)
+      z.refreshRecords()
+      z.connecting = true
+    },
+    refreshRecords () {
+      this.fileRecords = Object.assign({}, this.fileRecords)
+    },
+    markFails(obj={}) {
+      for (const key in obj) {
+        if (key in ['trxing', 'resuming', 'pausing', 'removing']) {
+          let typedFileMap = obj[key] || {}
+          for (const uid in typedFileMap) {
+            let file = typedFileMap[uid]
+            z.setFileAsFailed(file)
+            typedFileMap[uid] = file
+          }
         }
       }
     },
@@ -322,10 +344,11 @@ export default {
       let state = ''
       let expectStates = []
       let fileRecord = this.getFile(file.uid)
-      // if(fileRecords.)
-      debugger
-      console.log(fileRecord)
-      if (fileRecords && fileRecords.expectStates && fileRecords.expectStates.indexOf(category) === -1) {
+      if (
+        fileRecords &&
+        fileRecords.expectStates &&
+        fileRecords.expectStates.indexOf(category) === -1
+      ) {
         state = fileRecords.state
         stateText = fileRecords.stateText
         expectStates = fileRecords.expectStates // 解决按钮事件后, 文件状态被新到的旧文件包的状态替换
@@ -496,11 +519,11 @@ export default {
         z.proxy.send('upload', {
           list: z.files
         })
-        z.proxy.send('watch')
+        // z.proxy.send('watch')
       }
     },
     dragover(event) {
-      console.log('File(s) in drop zone')
+      // console.log('File(s) in drop zone')
       event.preventDefault()
       event.stopPropagation()
     },
