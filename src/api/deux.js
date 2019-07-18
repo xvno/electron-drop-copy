@@ -8,13 +8,7 @@ function initMessage(cmd, opt) {
         opt: opt || {}
     }
 }
-export const states = {
-    WAITING: 0,
-    TRXING: 1,
-    SUCCEEDED: 2,
-    PAUSED: 5,
-    REMOVED: 6
-}
+
 export const cmds = ['upload', 'list', 'pause', 'resume', 'remove', 'watch', 'offwatch']
 // module.exports.cmds = cmds
 export function Proxy(ws, ecb = console.log) {
@@ -26,6 +20,7 @@ export function Proxy(ws, ecb = console.log) {
 }
 
 Proxy.prototype.send = function (cmd, opt = {}) {
+    console.log(cmd, opt)
     let z = this;
     if (z.ready) {
         if (z.methodsNames.includes(cmd)) {

@@ -21,7 +21,7 @@
                   <template slot-scope="scope">
                     <el-progress :percentage="scope.row.progress"></el-progress>
                     <el-button
-                      v-if="scope.row.status === 5 || scope.row.trxed < scope.row.total"
+                      v-if="scope.row.status === 5 && scope.row.trxed < scope.row.total"
                       @click="resumeUpload(scope.row)"
                       type="primary"
                       size="small"
@@ -33,7 +33,7 @@
                       size="small"
                     >暂停上传</el-button>
                     <el-button
-                      v-if="scope.row.status === 0 || scope.row.status === 1 || scope.row.status === 5"
+                      v-if="scope.row.status === 0 || scope.row.status === 1 || scope.row.status === 2 || scope.row.status === 5"
                       @click="removeFile(scope.row)"
                       type="danger"
                       size="small"
@@ -79,22 +79,29 @@ export default {
         removing: [],
         resuming: []
       },
+      STATES: {
+        WAITING: 0,
+        TRXING: 1,
+        SUCCEEDED: 2,
+        PAUSED: 5,
+        REMOVED: 6
+      },
       wsUri: 'ws://localhost:8080/files_trans' // 'ws://localhost:3333/ws'
     }
   },
   computed: {
     tableData() {
       let data = Object.values(this.fileRecords) || []
-      let ret = data.reduce((pre, cur, idx, d) => {
-        let newCur = cur.filter(i => {
-          if(i && i instanceof Object) {
-            return true
-          }
-          return false
-        })
-        return [...pre, ...newCur]
-      }, [])
-      console.log(ret)
+      let ret = []
+      data.forEach(i => {
+        if (i instanceof Array) {
+          i.forEach(j => {
+            if (j && j instanceof Object) {
+              ret.push(j)
+            }
+          })
+        }
+      })
       return ret
     }
   },
@@ -138,52 +145,23 @@ export default {
       }
       ws.onmessage = e => {
         try {
-          console.log(e)
           let ret = JSON.parse(e.data)
-          if(ret.code !== '200') {
-              if(ret.code >= 300) {
-                return showResponseStatusError(ret.msg)
-              }
+          if (ret.code !== '200') {
+            if (ret.code >= 300) {
+              return showResponseStatusError(ret.msg)
+            }
           }
-          if(!ret.data) {
-            console.log('No data')
-            console.log(ret)
-            console.log('heya----------1');
+          if (!ret.data) {
             return showFormatError(e.data)
           }
           let { cmd, data } = ret
-          // switch (cmd) {
-          //   case 'list':
-          //     z.formatData(data.list)
-          //     break
-          //   case 'upload':
-          //     z.formatData(data.list)
-          //     break
-          //   case 'watch':
-          //     z.formatData(data.list)
-          //     break
-          //   case 'offwatch':
-          //     z.formatData(data.list)
-          //     break
-          //   case 'pause':
-          //     z.formatData(data.list)
-          //     break
-          //   case 'resume':
-          //     z.formatData(data.list)
-          //     break
-          //   case 'remove':
-          //     z.formatData(data.list)
-          //     break
-          //   default:
-          //     alert('未知命令')
-          // }
-          if(cmds.indexOf(cmd) > -1) {
+          if (cmds.indexOf(cmd) > -1) {
             z.formatData(data.list)
           } else {
-            console.log('heya----------2');
-            showFormatError();
+            showFormatError()
           }
         } catch (e) {
+          showFormatError('错误, 不能被解析')
           console.log(e)
         }
       }
@@ -212,7 +190,7 @@ export default {
             z.setFileAsFinished(f)
             break
           case 1:
-            if (f.progress > 99) {
+            if (f.progress >= 99) {
               f.progress = 99
               z.setFileAsToFinish(f)
             } else {
@@ -232,22 +210,12 @@ export default {
             z.setFileAsWaiting(f)
             break
           default:
-            console.log('heya----------3');
             showFormatError()
-            // let msg = '错误的数据格式, file.status 错误'
-            // z.errors['data'].push(msg)
         }
       })
     },
     checkFileStatus(file) {
       let { trxed, total, status } = file
-      // if (status === 2) {
-      //   return 2 // done
-      // } else if (Math.floor(total - trxed) === 0) {
-      //   return 1 // wait to finish
-      // } else {
-      //   return 0 // transmitting
-      // }
       let s = {
         code: 0,
         type: ''
@@ -310,37 +278,6 @@ export default {
       }
       return ret
     },
-    // storeData() {
-    //   let z = this
-    //   let totalFiles = {}
-    //   let fileCategories = Object.keys(z.fileRecords)
-    //   fileCategories.forEach(category => {
-    //     totalFiles[category] = z[category]
-    //   })
-    //   if (z.checkStoreAvailable()) {
-    //     z.store.setItem('__ff_recordFiles', JSON.stringify(totalFiles))
-    //   }
-    // },
-    // restoreData() {
-    //   let z = this
-    //   if (z.checkStoreAvailable()) {
-    //     let totalFiles = {}
-    //     let storedData = z.store.getItem('__ff_recordFiles')
-    //     if (storedData) {
-    //       try {
-    //         totalFiles = JSON.parse(storedData)
-    //       } catch (e) {
-    //         let msg = '读取历史记录出错, store 错误'
-    //         console.log(msg)
-    //         z.errors['store'].push(msg)
-    //       }
-    //     }
-    //     let fileCategories = Object.keys(z.fileRecords)
-    //     fileCategories.forEach(category => {
-    //       z[category] = totalFiles[category] || {}
-    //     })
-    //   }
-    // },
     setFileAsFinished(file) {
       this.setFile(file, 'finished')
     },
@@ -368,49 +305,81 @@ export default {
     setFileAsTrxing(file) {
       this.setFile(file, 'trxing')
     },
+    getFile(uid) {
+      return this.tableData.find(item => {
+        return item.uid === uid
+      })
+    },
     setFile(file, category) {
-      debugger
-      if(!file.uid || [0,1,2,3,5,6].indexOf(file.status)=== -1 ) {
+      if (!file.uid || [0, 1, 2, 3, 5, 6].indexOf(file.status) === -1) {
         console.log(file)
         return showFormatError()
       }
       let z = this
       let fileRecords = z.fileRecords
-      let dataHolder = fileRecords[category] // categorized data: finished, toFinish
-      let stext = ''
-      switch (category) {
-        case 'waiting':
-          stext = '准备传输...'
-          break
-        case 'finished':
-          stext = '已完成'
-          break
-        case 'toFinish':
-          stext = '完成中...'
-          break
-        case 'failed':
-          stext = '失败'
-          break
-        case 'paused':
-          stext = '已暂停'
-          break
-        case 'pausing':
-          stext = '暂停中...'
-          break
-        case 'removed':
-          stext = '已删除'
-          break
-        case 'removing':
-          stext = '删除中...'
-          break
-        case 'trxing':
-          stext = '传输中'
-          break
-        default:
-          stext = '未知'
-          break
+      let dataHolder = fileRecords[category] // categorized data: finished, toFinish...
+      let stateText = ''
+      let state = ''
+      let expectStates = []
+      let fileRecord = this.getFile(file.uid)
+      // if(fileRecords.)
+      debugger
+      console.log(fileRecord)
+      if (fileRecords && fileRecords.expectStates && fileRecords.expectStates.indexOf(category) === -1) {
+        state = fileRecords.state
+        stateText = fileRecords.stateText
+        expectStates = fileRecords.expectStates // 解决按钮事件后, 文件状态被新到的旧文件包的状态替换
+      } else {
+        state = category
+        switch (category) {
+          case 'waiting':
+            stateText = '准备传输...'
+            expectStates = ['failed', 'trxing', 'removing']
+            break
+          case 'finished':
+            stateText = '已完成'
+            expectStates = ['failed', 'removing']
+            break
+          case 'toFinish':
+            stateText = '完成中...'
+            expectStates = ['failed', 'finished']
+            break
+          case 'failed':
+            stateText = '失败'
+            break
+          case 'paused':
+            stateText = '已暂停'
+            expectStates = ['failed', 'resuming', 'removing']
+            break
+          case 'pausing':
+            stateText = '暂停中...'
+            expectStates = ['failed', 'paused', 'removing']
+            break
+          case 'resuming':
+            stateText = '恢复传输中...'
+            expectStates = ['failed', 'waiting', 'trxing', 'removing']
+            break
+          case 'removed':
+            stateText = '已删除'
+            expectStates = ['failed']
+            break
+          case 'removing':
+            stateText = '删除中...'
+            expectStates = ['failed', 'removed']
+            break
+          case 'trxing':
+            stateText = '传输中'
+            expectStates = ['failed', 'pausing', 'removing']
+            break
+          default:
+            state = 'unknown'
+            stateText = '未知'
+            break
+        }
       }
-      file.statusText = stext
+      file.statusText = stateText
+      file.expectStates = expectStates
+      file.state = state
       if (dataHolder) {
         // Vue.set()
         // dataHolder[file.uid] = file
@@ -420,7 +389,7 @@ export default {
           [file.uid]: file
         }
       }
-      let cats = Object.keys(fileRecords)
+      let cats = Object.keys(fileRecords) || []
       let index = cats.indexOf(category)
       if (index > -1) {
         cats.splice(index, 1)
@@ -473,7 +442,7 @@ export default {
           delete list[file.uid]
         }
       })
-      this.fileRecords = Object.assign({}, fileRecords);
+      this.fileRecords = Object.assign({}, fileRecords)
     },
     open(link) {
       this.$electron.shell.openExternal(link)
