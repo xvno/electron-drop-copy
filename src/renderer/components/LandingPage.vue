@@ -146,6 +146,7 @@ export default {
       ws.onmessage = e => {
         try {
           let ret = JSON.parse(e.data)
+          console.log(ret)
           if (ret.code !== '200') {
             if (ret.code >= 300) {
               return showResponseStatusError(ret.msg)
@@ -156,6 +157,9 @@ export default {
           }
           let { cmd, data } = ret
           if (cmds.indexOf(cmd) > -1) {
+            if(['upload', 'resume'].indexOf(cmd) > -1) {
+              z.proxy.send('watch')
+            }
             z.formatData(data.list)
           } else {
             showFormatError()
@@ -519,7 +523,7 @@ export default {
         z.proxy.send('upload', {
           list: z.files
         })
-        z.proxy.send('watch')
+        // z.proxy.send('watch')
       }
     },
     dragover(event) {
