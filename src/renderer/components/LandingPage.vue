@@ -147,7 +147,7 @@ export default {
         try {
           let ret = JSON.parse(e.data)
           console.log(ret)
-          if (ret.code !== '200') {
+          if (ret.code !== 200) {
             if (ret.code >= 300) {
               return showResponseStatusError(ret.msg)
             }
@@ -182,8 +182,8 @@ export default {
       z.refreshRecords()
       z.connecting = true
     },
-    refreshRecords () {
-      this.fileRecords = Object.assign({}, this.fileRecords)
+    refreshRecords(fileRecords=this.fileRecords) {
+      this.fileRecords = Object.assign({}, fileRecords)
     },
     markFails(obj={}) {
       for (const key in obj) {
@@ -204,6 +204,9 @@ export default {
       }
       z.connect()
     },
+    /**
+     * 给已有的状态打补丁
+     */
     formatData(list) {
       let z = this
       list.forEach(f => {
@@ -240,6 +243,9 @@ export default {
         }
       })
     },
+    /**
+     * go service中定义的状态
+     */
     checkFileStatus(file) {
       let { trxed, total, status } = file
       let s = {
@@ -343,19 +349,18 @@ export default {
       }
       let z = this
       let fileRecords = z.fileRecords
-      let dataHolder = fileRecords[category] // categorized data: finished, toFinish...
       let stateText = ''
       let state = ''
       let expectStates = []
-      let fileRecord = this.getFile(file.uid)
+      let record = this.getFile(file.uid)
       if (
         fileRecords &&
         fileRecords.expectStates &&
         fileRecords.expectStates.indexOf(category) === -1
       ) {
-        state = fileRecords.state
-        stateText = fileRecords.stateText
-        expectStates = fileRecords.expectStates // 解决按钮事件后, 文件状态被新到的旧文件包的状态替换
+        state = record.state
+        stateText = record.stateText
+        expectStates = record.expectStates // 状态流转控制: 防止按钮事件后, 文件状态被新到的旧文件包的状态替换
       } else {
         state = category
         switch (category) {
@@ -407,26 +412,32 @@ export default {
       file.statusText = stateText
       file.expectStates = expectStates
       file.state = state
+      /*
+        为什么这么写?
+        新状态可以在不定义分类列表(fileRecords.categorizedList)的情况下使用
+      */
+      let dataHolder = fileRecords[category] // categorized data: finished, toFinish...
       if (dataHolder) {
         // Vue.set()
-        // dataHolder[file.uid] = file
+        z.removeFileFromList(file)
         dataHolder[file.uid] = file
       } else {
         fileRecords[category] = {
           [file.uid]: file
         }
       }
-      let cats = Object.keys(fileRecords) || []
-      let index = cats.indexOf(category)
-      if (index > -1) {
-        cats.splice(index, 1)
-      }
-      cats.forEach(cat => {
-        if (fileRecords[cat] && fileRecords[cat][file.uid]) {
-          delete fileRecords[cat][file.uid]
-        }
-      })
-      z.fileRecords = Object.assign({}, fileRecords)
+      z.refreshRecords();
+      // let cats = Object.keys(fileRecords) || []
+      // let index = cats.indexOf(category)
+      // if (index > -1) {
+      //   cats.splice(index, 1)
+      // }
+      // cats.forEach(cat => {
+      //   if (fileRecords[cat] && fileRecords[cat][file.uid]) {
+      //     delete fileRecords[cat][file.uid]
+      //   }
+      // })
+      // z.fileRecords = Object.assign({}, fileRecords)
     },
     preformatFile(file) {
       let progress = Math.floor((100 * file.trxed) / file.total)
@@ -452,6 +463,7 @@ export default {
           list: [{ uid: file.uid }]
         })
       }
+      console.log('set as pausing')
       z.setFileAsPausing(file)
     },
     removeFile(file) {
@@ -469,7 +481,6 @@ export default {
           delete list[file.uid]
         }
       })
-      this.fileRecords = Object.assign({}, fileRecords)
     },
     open(link) {
       this.$electron.shell.openExternal(link)
