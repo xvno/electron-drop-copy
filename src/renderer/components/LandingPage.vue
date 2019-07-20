@@ -71,7 +71,7 @@ export default {
       store: null,
       fileRecords: {
         finished: [],
-        toFinish: [],
+        Finishing: [],
         trxing: [],
         paused: [],
         pausing: [],
@@ -221,7 +221,7 @@ export default {
           case 1:
             if (f.progress >= 99) {
               f.progress = 99
-              z.setFileAsToFinish(f)
+              z.setFileAsFinishing(f)
             } else {
               z.setFileAsTrxing(f)
             }
@@ -298,26 +298,26 @@ export default {
       }
       return s
     },
-    checkStoreAvailable() {
-      let ret = false
-      if (this.errors) {
-        if (this.store) {
-          ret = true
-          delete this.errors['store']
-        } else {
-          this.errors['store'] = 'Store not available!'
-        }
-      }
-      return ret
-    },
+    // checkStoreAvailable() {
+    //   let ret = false
+    //   if (this.errors) {
+    //     if (this.store) {
+    //       ret = true
+    //       delete this.errors['store']
+    //     } else {
+    //       this.errors['store'] = 'Store not available!'
+    //     }
+    //   }
+    //   return ret
+    // },
     setFileAsFinished(file) {
       this.setFile(file, 'finished')
     },
     setFileAsWaiting(file) {
       this.setFile(file, 'waiting')
     },
-    setFileAsToFinish(file) {
-      this.setFile(file, 'toFinish')
+    setFileAsFinishing(file) {
+      this.setFile(file, 'Finishing')
     },
     setFileAsFailed(file) {
       this.setFile(file, 'failed')
@@ -354,9 +354,9 @@ export default {
       let expectStates = []
       let record = this.getFile(file.uid)
       if (
-        fileRecords &&
-        fileRecords.expectStates &&
-        fileRecords.expectStates.indexOf(category) === -1
+        record &&
+        record.expectStates &&
+        record.expectStates.indexOf(category) === -1
       ) {
         state = record.state
         stateText = record.stateText
@@ -372,7 +372,7 @@ export default {
             stateText = '已完成'
             expectStates = ['failed', 'removing']
             break
-          case 'toFinish':
+          case 'Finishing':
             stateText = '完成中...'
             expectStates = ['failed', 'finished']
             break
@@ -416,7 +416,7 @@ export default {
         为什么这么写?
         新状态可以在不定义分类列表(fileRecords.categorizedList)的情况下使用
       */
-      let dataHolder = fileRecords[category] // categorized data: finished, toFinish...
+      let dataHolder = fileRecords[category] // categorized data: finished, Finishing...
       if (dataHolder) {
         // Vue.set()
         z.removeFileFromList(file)
@@ -441,7 +441,7 @@ export default {
     },
     preformatFile(file) {
       let progress = Math.floor((100 * file.trxed) / file.total)
-      if (progress > 0 && progress <= 100) {
+      if (!isNaN(progress) && progress > 0 && progress <= 100) {
         file.progress = progress
       } else {
         file.progress = 0
